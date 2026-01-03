@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/command"
 import { Github, Linkedin, Mail, MapPin, Send, Twitter, Check, ChevronsUpDown, Download } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useToast } from "@/hooks/use-toast"
 
 const roles = [
   { value: "data-scientist", label: "Data Scientist", category: "Core (must-have)" },
@@ -38,6 +39,18 @@ const roles = [
   { value: "mlops-engineer", label: "MLOps Engineer", category: "Platform / MLOps (optional but strong)" },
 ]
 
+// API Configuration
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+const CONTACT_API_ENDPOINT = `${API_BASE_URL}/api/contact`
+
+// Map Select values to backend expected format
+const REASON_MAP: Record<string, string> = {
+  'hiring': 'Hiring / Job Opportunity',
+  'collaboration': 'Project Collaboration',
+  'freelance': 'Freelance / Contract Work',
+  'general': 'General Inquiry',
+}
+
 export function Contact() {
   const sectionRef = useRef<HTMLElement>(null)
   const [isVisible, setIsVisible] = useState(false)
@@ -46,6 +59,13 @@ export function Contact() {
   const [role, setRole] = useState<string>("")
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  
+  // Form state
+  const [name, setName] = useState<string>("")
+  const [email, setEmail] = useState<string>("")
+  const [message, setMessage] = useState<string>("")
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+  const { toast } = useToast()
   
   const filteredRoles = role
     ? roles.filter((r) => r.label.toLowerCase().includes(role.toLowerCase()))
@@ -143,19 +163,189 @@ export function Contact() {
 
             {/* Contact Form */}
             <div className="bg-background/50 backdrop-blur-sm border border-border rounded-2xl p-8 md:p-12">
-              <form className="space-y-6">
+              <form 
+                className="space-y-6"
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  
+                  // Client-side validation
+                  if (!name.trim()) {
+                    toast({
+                      variant: "destructive",
+                      title: "Validation Error",
+                      description: "Name is required",
+                    })
+                    return
+                  }
+                  
+                  if (!email.trim()) {
+                    toast({
+                      variant: "destructive",
+                      title: "Validation Error",
+                      description: "Email is required",
+                    })
+                    return
+                  }
+                  
+                  if (!reason) {
+                    toast({
+                      variant: "destructive",
+                      title: "Validation Error",
+                      description: "Please select a reason",
+                    })
+                    return
+                  }
+                  
+                  // Capture all form values BEFORE any state updates
+                  // This ensures we read the current state values, not future ones
+                  const currentName = name.trim()
+                  const currentEmail = email.trim()
+                  const currentReason = reason
+                  const currentMessage = message.trim()
+                  // Capture role value - check if it exists and has content after trim
+                  const currentRole = role && typeof role === 'string' ? role.trim() : ''
+                  
+                  // Map reason value to backend expected format
+                  const backendReason = REASON_MAP[currentReason]
+                  if (!backendReason) {
+                    toast({
+                      variant: "destructive",
+                      title: "Validation Error",
+                      description: "Invalid reason value",
+                    })
+                    return
+                  }
+                  
+                  // Prepare request payload
+                  const payload: {
+                    name: string
+                    email: string
+                    reason: string
+                    message?: string
+                    role?: string
+                  } = {
+                    name: currentName,
+                    email: currentEmail,
+                    reason: backendReason,
+                    message: currentMessage || undefined,
+                  }
+                  
+                  // Include role if reason is "Hiring / Job Opportunity" and role is filled
+                  const isHiringReason = backendReason === 'Hiring / Job Opportunity'
+                  if (isHiringReason && currentRole && currentRole.length > 0) {
+                    payload.role = currentRole
+                  }
+                  
+                  // Debug logging (remove in production)
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('Form submission - captured values:', {
+                      currentReason,
+                      backendReason,
+                      isHiringReason,
+                      roleState: role,
+                      roleType: typeof role,
+                      currentRole,
+                      currentRoleLength: currentRole.length,
+                      willIncludeRole: isHiringReason && currentRole && currentRole.length > 0,
+                      payload,
+                    })
+                  }
+                  
+                  // Set loading state AFTER capturing all values
+                  setIsSubmitting(true)
+                  
+                  try {
+                    
+                    // Send request to backend
+                    const response = await fetch(CONTACT_API_ENDPOINT, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify(payload),
+                    })
+                    
+                    // Parse response
+                    const data = await response.json()
+                    
+                    // Handle response
+                    if (!response.ok) {
+                      // Backend returned error
+                      throw new Error(data.error || 'Something went wrong. Please try again later.')
+                    }
+                    
+                    if (data.success) {
+                      // Success - show toast and reset form
+                      toast({
+                        title: "Success!",
+                        description: data.message || "Message received successfully",
+                      })
+                      
+                      // Reset form
+                      setName("")
+                      setEmail("")
+                      setReason("")
+                      setMessage("")
+                      setRole("")
+                    } else {
+                      // Backend returned success: false
+                      throw new Error(data.error || 'Something went wrong. Please try again later.')
+                    }
+                  } catch (error) {
+                    // Handle errors
+                    let errorMessage = 'Something went wrong. Please try again later.'
+                    
+                    if (error instanceof Error) {
+                      errorMessage = error.message
+                    } else if (typeof error === 'string') {
+                      errorMessage = error
+                    }
+                    
+                    // Check for network errors
+                    if (error instanceof TypeError && error.message.includes('fetch')) {
+                      errorMessage = 'Network error. Please check your connection and try again.'
+                    }
+                    
+                    toast({
+                      variant: "destructive",
+                      title: "Error",
+                      description: errorMessage,
+                    })
+                  } finally {
+                    // Reset loading state
+                    setIsSubmitting(false)
+                  }
+                }}
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label htmlFor="name" className="block text-sm font-medium mb-2">
                       Name
                     </label>
-                    <Input id="name" placeholder="Your name" className="bg-card/50 border-border" />
+                    <Input 
+                      id="name" 
+                      placeholder="Your name" 
+                      className="bg-card/50 border-border"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      disabled={isSubmitting}
+                      required
+                    />
                   </div>
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium mb-2">
                       Email
                     </label>
-                    <Input id="email" type="email" placeholder="your@email.com" className="bg-card/50 border-border" />
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      placeholder="your@email.com" 
+                      className="bg-card/50 border-border"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={isSubmitting}
+                      required
+                    />
                   </div>
                 </div>
 
@@ -163,7 +353,7 @@ export function Contact() {
                   <label htmlFor="reason" className="block text-sm font-medium mb-2">
                     Reason for reaching out
                   </label>
-                  <Select value={reason} onValueChange={setReason}>
+                  <Select value={reason} onValueChange={setReason} disabled={isSubmitting}>
                     <SelectTrigger id="reason" className="bg-card/50 border-border w-full">
                       <SelectValue placeholder="Select a reason" />
                     </SelectTrigger>
@@ -200,6 +390,7 @@ export function Contact() {
                             onClick={() => setRoleOpen(true)}
                             className="bg-card/50 border-border pr-10"
                             autoComplete="off"
+                            disabled={isSubmitting}
                           />
                           <ChevronsUpDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                         </div>
@@ -258,12 +449,20 @@ export function Contact() {
                     placeholder="Briefly share details — role, project, or opportunity"
                     rows={6}
                     className="bg-card/50 border-border resize-none"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    disabled={isSubmitting}
                   />
                 </div>
 
-                <Button size="lg" className="w-full md:w-auto group">
+                <Button 
+                  type="submit"
+                  size="lg" 
+                  className="w-full md:w-auto group"
+                  disabled={isSubmitting}
+                >
                   <Send className="mr-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                  Submit
+                  {isSubmitting ? 'Submitting...' : 'Submit'}
                 </Button>
               </form>
             </div>

@@ -11,7 +11,11 @@
  */
 export async function submitContact(req, res, next) {
   try {
-    const { name, email, reason, message } = req.body;
+    const { name, email, reason, message, role } = req.body;
+
+    // Normalize optional fields (set to null if empty or undefined)
+    const normalizedMessage = message && message.trim() ? message.trim() : null;
+    const normalizedRole = role && role.trim() ? role.trim() : null;
 
     // TODO: Add database insertion here
     // Example:
@@ -19,7 +23,8 @@ export async function submitContact(req, res, next) {
     //   name,
     //   email,
     //   reason,
-    //   message,
+    //   message: normalizedMessage,
+    //   role: normalizedRole,
     //   createdAt: new Date(),
     //   ipAddress: req.ip,
     // };
@@ -39,7 +44,8 @@ export async function submitContact(req, res, next) {
         name,
         email,
         reason,
-        message: message || '(empty)',
+        role: normalizedRole || '(not provided)',
+        message: normalizedMessage || '(empty)',
         timestamp: new Date().toISOString(),
         ip: req.ip,
       });

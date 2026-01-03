@@ -23,7 +23,7 @@ const ALLOWED_REASONS = [
  */
 export function validateContactInput(req, res, next) {
   const errors = [];
-  const { name, email, reason, message } = req.body;
+  const { name, email, reason, message, role } = req.body;
 
   // Validate name
   if (!name || typeof name !== 'string') {
@@ -82,14 +82,31 @@ export function validateContactInput(req, res, next) {
       } else if (containsMaliciousContent(message)) {
         errors.push('Message contains invalid characters');
       } else {
-        // Store as null if empty, otherwise store sanitized message
-        req.body.message = sanitizedMessage.length > 0 ? sanitizedMessage : null;
+        // Store sanitized message (normalization happens in controller)
+        req.body.message = sanitizedMessage;
       }
     }
-  } else {
-    // Message is optional, set to null if not provided
-    req.body.message = null;
   }
+  // Note: Message is optional - if not provided, it stays undefined (normalization in controller)
+
+  // Validate role (optional)
+  if (role !== undefined && role !== null) {
+    if (typeof role !== 'string') {
+      errors.push('Role must be a string');
+    } else {
+      const sanitizedRole = sanitizeString(role);
+      
+      if (sanitizedRole.length > 100) {
+        errors.push('Role must be no more than 100 characters long');
+      } else if (containsMaliciousContent(role)) {
+        errors.push('Role contains invalid characters');
+      } else {
+        // Store sanitized role (normalization happens in controller)
+        req.body.role = sanitizedRole;
+      }
+    }
+  }
+  // Note: Role is optional - if not provided, it stays undefined (normalization in controller)
 
   // If there are validation errors, return them
   if (errors.length > 0) {
