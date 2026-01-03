@@ -11,6 +11,10 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 const app = express();
 
+// ✅ Trust first proxy (Render / cloud load balancers)
+// Required for correct IP detection with express-rate-limit
+app.set("trust proxy", 1);
+
 // Security headers
 app.use(helmet());
 
