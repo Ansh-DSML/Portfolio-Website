@@ -261,7 +261,7 @@ export function Contact() {
                   />
                 </div>
 
-                <Button size="lg" className="w-full md:w-auto group justify-center">
+                <Button size="lg" className="w-full md:w-auto group">
                   <Send className="mr-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   Submit
                 </Button>
