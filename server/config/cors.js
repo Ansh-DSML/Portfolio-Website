@@ -25,15 +25,15 @@ function getAllowedOrigins() {
  * CORS configuration options
  */
 export const corsOptions = {
-  origin: (origin, callback) => {
-    const allowedOrigins = getAllowedOrigins();
-    
-    // Allow requests with no origin (like mobile apps or curl requests) in development
-    if (process.env.NODE_ENV === 'development' && !origin) {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (server-to-server requests)
+    if (!origin) {
       return callback(null, true);
     }
 
-    if (!origin || allowedOrigins.includes(origin)) {
+    const allowedOrigins = getAllowedOrigins();
+    
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
