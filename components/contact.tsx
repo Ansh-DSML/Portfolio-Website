@@ -40,7 +40,10 @@ const roles = [
 ]
 
 // API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+const API_BASE_URL = 
+  process.env.NODE_ENV === 'development'
+    ? 'http://localhost:5000'
+    : 'https://ansh-portfolio-l6i9.onrender.com'
 const CONTACT_API_ENDPOINT = `${API_BASE_URL}/api/contact`
 
 // Map Select values to backend expected format
