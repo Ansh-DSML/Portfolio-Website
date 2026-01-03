@@ -6,20 +6,13 @@
 import cors from 'cors';
 
 /**
- * Get allowed origins from environment variables
- * @returns {string[]} - Array of allowed origins
+ * Explicitly allowed origins
+ * Update this list if adding new frontend deployments
  */
-function getAllowedOrigins() {
-  const origin = process.env.ALLOWED_ORIGIN;
-  
-  if (!origin) {
-    // Fallback to localhost for development
-    return ['http://localhost:3000'];
-  }
-
-  // Support multiple origins (comma-separated)
-  return origin.split(',').map(o => o.trim()).filter(Boolean);
-}
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'https://portfolio-website-psi-eight-bj2g4psdik.vercel.app',
+];
 
 /**
  * CORS configuration options
@@ -28,14 +21,26 @@ export const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (server-to-server requests)
     if (!origin) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[CORS] Allowing request with no origin (server-to-server)');
+      }
       return callback(null, true);
     }
 
-    const allowedOrigins = getAllowedOrigins();
-    
-    if (allowedOrigins.includes(origin)) {
+    // Log origin for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[CORS] Request from origin: ${origin}`);
+    }
+
+    if (ALLOWED_ORIGINS.includes(origin)) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[CORS] Allowing request from: ${origin}`);
+      }
       callback(null, true);
     } else {
+      // Log rejected origin
+      console.error(`[CORS] Rejected request from origin: ${origin}`);
+      console.error(`[CORS] Allowed origins: ${ALLOWED_ORIGINS.join(', ')}`);
       callback(new Error('Not allowed by CORS'));
     }
   },

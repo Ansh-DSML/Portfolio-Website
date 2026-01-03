@@ -23,7 +23,10 @@ app.use(express.json({ limit: '10kb' }));
 // Request logging (development only)
 if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
+    console.log(`${new Date().toISOString()} ${req.method} ${req.path}`, {
+      origin: req.headers.origin || '(no origin)',
+      ip: req.ip,
+    });
     next();
   });
 }

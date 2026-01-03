@@ -38,18 +38,17 @@ export async function submitContact(req, res, next) {
     //   body: JSON.stringify(contactData),
     // });
 
-    // For now, just log the submission (remove in production)
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Contact form submission:', {
-        name,
-        email,
-        reason,
-        role: normalizedRole || '(not provided)',
-        message: normalizedMessage || '(empty)',
-        timestamp: new Date().toISOString(),
-        ip: req.ip,
-      });
-    }
+    // Log successful submission
+    console.log('[Contact] Successful submission:', {
+      name,
+      email,
+      reason,
+      role: normalizedRole || '(not provided)',
+      message: normalizedMessage ? `(${normalizedMessage.length} chars)` : '(empty)',
+      timestamp: new Date().toISOString(),
+      ip: req.ip,
+      origin: req.headers.origin || '(no origin)',
+    });
 
     // Return success response
     res.status(200).json({

@@ -40,11 +40,8 @@ const roles = [
 ]
 
 // API Configuration
-const API_BASE_URL = 
-  process.env.NODE_ENV === 'development'
-    ? 'http://localhost:5000'
-    : 'https://ansh-portfolio-l6i9.onrender.com'
-const CONTACT_API_ENDPOINT = `${API_BASE_URL}/api/contact`
+// Always use the deployed backend (both local and production frontend)
+const API_URL = 'https://ansh-portfolio-l6i9.onrender.com/api/contact'
 
 // Map Select values to backend expected format
 const REASON_MAP: Record<string, string> = {
@@ -259,8 +256,14 @@ export function Contact() {
                   
                   try {
                     
+                    // Log API URL being used (debugging)
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('[Contact Form] Sending request to:', API_URL);
+                      console.log('[Contact Form] Payload:', JSON.stringify(payload, null, 2));
+                    }
+                    
                     // Send request to backend
-                    const response = await fetch(CONTACT_API_ENDPOINT, {
+                    const response = await fetch(API_URL, {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
@@ -268,12 +271,18 @@ export function Contact() {
                       body: JSON.stringify(payload),
                     })
                     
-                    // Parse response
-                    const data = await response.json()
+                    // Handle response parsing
+                    let data;
+                    try {
+                      data = await response.json()
+                    } catch (parseError) {
+                      // Failed to parse JSON response
+                      throw new Error('Invalid response from server. Please try again later.')
+                    }
                     
                     // Handle response
                     if (!response.ok) {
-                      // Backend returned error
+                      // Backend returned error (validation, rate limit, etc.)
                       throw new Error(data.error || 'Something went wrong. Please try again later.')
                     }
                     
@@ -295,23 +304,43 @@ export function Contact() {
                       throw new Error(data.error || 'Something went wrong. Please try again later.')
                     }
                   } catch (error) {
-                    // Handle errors
+                    // Handle errors with specific error types
                     let errorMessage = 'Something went wrong. Please try again later.'
+                    let errorTitle = 'Error'
+                    
+                    // Log full error for debugging
+                    if (process.env.NODE_ENV === 'development') {
+                      console.error('[Contact Form] Error details:', {
+                        error,
+                        errorType: error instanceof Error ? error.constructor.name : typeof error,
+                        errorMessage: error instanceof Error ? error.message : String(error),
+                        errorStack: error instanceof Error ? error.stack : undefined,
+                      })
+                    }
                     
                     if (error instanceof Error) {
-                      errorMessage = error.message
+                      // Network/CORS errors (TypeError from fetch)
+                      if (error instanceof TypeError && error.message.includes('fetch')) {
+                        errorTitle = 'Network Error'
+                        errorMessage = 'Unable to connect to the server. Please check your internet connection and try again.'
+                      } 
+                      // CORS errors (usually manifest as network errors, but check message)
+                      else if (error.message.includes('CORS') || error.message.includes('cors')) {
+                        errorTitle = 'Connection Error'
+                        errorMessage = 'Connection blocked. Please contact support if this persists.'
+                      }
+                      // Backend validation/rate limit errors (show backend message)
+                      else {
+                        errorTitle = 'Error'
+                        errorMessage = error.message
+                      }
                     } else if (typeof error === 'string') {
                       errorMessage = error
                     }
                     
-                    // Check for network errors
-                    if (error instanceof TypeError && error.message.includes('fetch')) {
-                      errorMessage = 'Network error. Please check your connection and try again.'
-                    }
-                    
                     toast({
                       variant: "destructive",
-                      title: "Error",
+                      title: errorTitle,
                       description: errorMessage,
                     })
                   } finally {
